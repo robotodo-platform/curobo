@@ -29,7 +29,7 @@ import torch
 import torch.autograd.profiler as profiler
 
 # CuRobo
-from curobo.cuda_robot_model.kinematics_parser import LinkParams
+from curobo.cuda_robot_model.kinematics_parser import KinematicsParser, LinkParams
 from curobo.cuda_robot_model.types import (
     CSpaceConfig,
     JointLimits,
@@ -129,6 +129,9 @@ class CudaRobotGeneratorConfig:
 
     #: Load Kinematics chain from usd.
     use_usd_kinematics: bool = False
+
+    #: Custom kinematics parser. This overrides any urdf/usd configs.
+    custom_kinematics_parser: Optional[KinematicsParser] = None
 
     #: Joints to flip axis when loading from USD
     usd_flip_joints: Optional[List[str]] = None
@@ -313,23 +316,26 @@ class CudaRobotGenerator(CudaRobotGeneratorConfig):
 
         # other_links = list(set(self.link_names + self.collision_link_names))
 
-        # load kinematics parser based on file type:
-        # NOTE: Also add option to load from data buffers.
-        if self.use_usd_kinematics:
-            self._kinematics_parser = UsdKinematicsParser(
-                self.usd_path,
-                flip_joints=self.usd_flip_joints,
-                flip_joint_limits=self.usd_flip_joint_limits,
-                extra_links=self.extra_links,
-                usd_robot_root=self.usd_robot_root,
-            )
+        if self.custom_kinematics_parser is not None:
+            self._kinematics_parser = self.custom_kinematics_parser
         else:
-            self._kinematics_parser = UrdfKinematicsParser(
-                self.urdf_path,
-                mesh_root=self.asset_root_path,
-                extra_links=self.extra_links,
-                load_meshes=self.load_meshes,
-            )
+            # load kinematics parser based on file type:
+            # NOTE: Also add option to load from data buffers.
+            if self.use_usd_kinematics:
+                self._kinematics_parser = UsdKinematicsParser(
+                    self.usd_path,
+                    flip_joints=self.usd_flip_joints,
+                    flip_joint_limits=self.usd_flip_joint_limits,
+                    extra_links=self.extra_links,
+                    usd_robot_root=self.usd_robot_root,
+                )
+            else:
+                self._kinematics_parser = UrdfKinematicsParser(
+                    self.urdf_path,
+                    mesh_root=self.asset_root_path,
+                    extra_links=self.extra_links,
+                    load_meshes=self.load_meshes,
+                )
 
         if self.lock_joints is None:
             self._build_kinematics(self.base_link, self.ee_link, other_links, self.link_names)
