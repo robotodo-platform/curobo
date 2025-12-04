@@ -26,7 +26,7 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 extra_cuda_args = {
     "nvcc": [
-        "--threads=8",
+        "--threads=0",
         "-O3",
         "--ftz=true",
         "--fmad=true",
